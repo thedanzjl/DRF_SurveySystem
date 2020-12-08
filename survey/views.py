@@ -36,6 +36,8 @@ class SurveyViewSet(viewsets.ModelViewSet):
         serializer = SurveyCompleteSerializer(instance=instance, data=request.data, context=context)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        # print(serializer.data)
+        print(SurveySerializer(instance, context=context).data)
         return Response(SurveySerializer(instance, context=context).data, status=status.HTTP_201_CREATED)
 
     @swagger_auto_schema(
@@ -46,11 +48,13 @@ class SurveyViewSet(viewsets.ModelViewSet):
     )
     @action(detail=False, methods=["GET"])
     def completed(self, request, *args, **kwargs):
+        if request.query_params.get('user_id') is None:
+            raise serializers.ValidationError('Must provide user_id in GET parameters')
+
         queryset = self.filter_queryset(self.get_queryset())
         context = self.get_serializer_context()
         serializer = CompletedSurveysSerializer(data=request.query_params, instance=queryset, context=context, many=True)
         serializer.is_valid(raise_exception=True)
-        print(serializer.validated_data)
         return Response(serializer.data)
 
 

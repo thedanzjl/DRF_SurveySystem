@@ -17,8 +17,10 @@ class QuestionAnswerSerializer(QuestionSerializer):
     def get_answer(self, obj: Question):
         user_id = self.context['user_id']
         print(user_id, obj, obj.answer_set)
-        ans = obj.answer_set.get(user_id=user_id)
-        return ans.content if ans else ""
+        ans = obj.answer_set.filter(user_id=user_id)
+        if len(ans) == 1:
+            return ans[0].content
+        return ""
 
     class Meta(QuestionSerializer.Meta):
         fields = QuestionSerializer.Meta.fields + [
@@ -40,7 +42,6 @@ class CompletedSurveysSerializer(serializers.ModelSerializer):
     @swagger_serializer_method(serializer_or_field=QuestionAnswerSerializer(many=True))
     def get_questions(self, obj: Survey):
         context = {**self.context, "user_id": self.context['request'].query_params.get('user_id')}
-        print('context user id', context['user_id'])
         return QuestionAnswerSerializer(instance=obj.question_set.filter(answer__user_id=context['user_id']), many=True, context=context).data
 
     class Meta:
@@ -50,12 +51,6 @@ class CompletedSurveysSerializer(serializers.ModelSerializer):
             'name',
             'questions'
         )
-
-    def validate_user_id(self, user_id):
-        print('here')
-        if not User.objects.filter(pk=user_id).exists():
-            raise serializers.ValidationError('Must provide user_id in GET parameters')
-        return user_id
 
 
 class SurveySerializer(serializers.HyperlinkedModelSerializer):
@@ -103,7 +98,7 @@ class QuestionCompleteSerializer(serializers.ModelSerializer):
         )
 
     def validate(self, attrs):
-        question: Question = Question.objects.get(pk=attrs["question_id"])
+        question: Question = Question.objects.get(id=attrs["question_id"])
         ans = attrs['answer']
         options = question.answer_options
         if (options == "ChooseOneField" and ans not in options.split(';')) \
